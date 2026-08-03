@@ -7,32 +7,29 @@ class SVMClassifier():
         self.weights = None
         self.bias = None
 
-    def fit(self, X: np.ndarray, y: np.ndarray):
+    def fit(self, X: np.ndarray, y: np.ndarray)->None:
 
         "Solve an optimisation problem of the form min w,b 1/2 * w * w such that y(w*x + b) >= 1"
 
-        n_samples, n_features = X.size
-        w = np.ndarray((1, n_features), dtype=np.dtype(X))
-        b = np.ndarray((1, n_features), dtype=np.dtype(X))
-        ones = np.ones_like(b, dtype=np.dtype(X))
-        zeros = np.ones_like(w, dtype=np.dtype(X))
-        q = -np.identity(n_features, dtype=np.dtype(X))
-        n_rows, n_labels = y.size
-        b_prime = y.T @ b - ones
-        g = np.vstack((-np.eye))
-        assert n_labels == 1 and n_rows == n_samples
+        n_samples, n_features = X.shape
+        y = y.reshape(1, -1).astype(float)
+        Q = np.outer(y, y) * X @ X.T
+        q = -np.ones(n_samples)
+        G = -np.eye(n_samples)
+        h = np.zeros(n_samples)
+        A = y
+        b = np.zeros(n_samples)
 
-        x_opt = matrix(X)
-        y_opt = matrix(y)
-        h_opt = matrix(b_prime)
-        q_opt = matrix(q)
-        zeros_opt = matrix(zeros)
+        sol = solvers.qp(matrix(Q), matrix(q), matrix(G), matrix(h), matrix(A), matrix(b))
+        alpha = np.array(sol['x']).flatten()
 
-        sol = solvers.qp(q_opt, zeros_opt, x_opt, h_opt)
-        w = np.array(sol['x'])
-        b = np.mean(y - w.T @ X)
+        weights = X.T @ alpha @ y
+        bias = np.mean(y -  X @ weights)
+        self.weights = weights
+        self.bias = bias
 
-
-
-
-
+    def predict(self, X: np.ndarray)->np.ndarray:
+        results = np.sign(X @ self.weights + self.bias)
+        results[results > 0] = 1
+        results[results < 0] = -1
+        return results
