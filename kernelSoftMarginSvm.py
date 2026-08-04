@@ -76,6 +76,12 @@ class KernelSoftMarginSvmClassifier():
         )
         self.bias = np.mean(self.support_labels - Ksv @ (self.alpha * self.support_labels))
 
-    def predict(self, X: np.ndarray)->np.ndarray:
-        K = self.gram_matrix(self.support_vectors, X)
-        return np.sign(K.T @ (self.alpha * self.support_labels) + self.bias)
+    def predict(self, X: np.ndarray)->tuple[np.ndarray, np.ndarray]:
+        try:
+            K = self.gram_matrix(self.support_vectors, X)
+            score = K.T @ (self.alpha * self.support_labels)
+            return (np.sign(score), score)
+
+        except Exception as e:
+            print("Erreur :", repr(e))
+            raise
