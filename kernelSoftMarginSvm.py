@@ -17,7 +17,7 @@ class KernelSoftMarginSvmClassifier():
         self.weights = None
         self.bias = None
 
-    def kernel(self, a: np.ndarray, b: np.ndarray)->np.ndarray:
+    def K(self, a: np.ndarray, b: np.ndarray)->np.ndarray:
         a_rows, a_cols = a.shape
         b_rows, b_cols = b.shape
         if a_rows == b_cols and a_cols == b_rows:
@@ -40,7 +40,34 @@ class KernelSoftMarginSvmClassifier():
 
     def fit(self, X: np.ndarray, y: np.ndarray)->None:
         n_samples, n_features = X.shape
-        
+        assert np.all(np.isin(y, [-1, 1]))
 
-    def predict(self, X: np.ndarray):
-        pass
+        y = y.reshape(-1).astype(float)
+
+        P = np.outer(y, y) * self.K(X, X)
+        q = -np.eye(n_samples)
+        G = np.vstack([
+            -np.eye(n_samples),
+            np.eye(n_samples),
+        ])
+        h = np.hstack([
+            np.zeros(n_samples),
+            -self.C*np.ones(n_samples)
+        ])
+        A = y.reshape(1, -1)
+        b = np.array([0.0])
+
+        sol = solvers.qp(matrix(P), matrix(q), matrix(G), matrix(h), matrix(A), matrix(b))
+        if sol['status'] != 'optimal':
+            raise RuntimeError(sol['status'])
+        
+        alpha = np.array(sol['x']).flatten()
+
+        support = alpha > 1e-6
+        weights = alpha * y
+        bias = np.mean(y[support] - self.K(X, X).T @ (alpha[support] * y[support]))
+        self.weights = weights
+        self.bias = bias
+
+    def predict(self, X: np.ndarray)->np.ndarray:
+        return np.sign(self.K(X, X).T @ self.weights + self.bias)
